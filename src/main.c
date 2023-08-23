@@ -50,7 +50,9 @@ void print_hex(uint8_t* buf, size_t size) {
 }
 
 
+
 int main(int argc, char*argv[]) {
+    
     
     char* filename = "./file.wav";
     
@@ -70,10 +72,9 @@ int main(int argc, char*argv[]) {
         return 1;
     }
     
-    uint8_t buf[509];
+    uint8_t buf[1024 * 1024 * 2];
     
     fread(buf, 1, sizeof(buf),handle);
-    printf("read %d bytes\n", sizeof(buf));
 
     
     print_info(buf, sizeof(buf));

@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define DEBUG_WAV
 
@@ -14,6 +15,7 @@
 #define read32be(x) ((x)[3] | ((x)[2] << 8) | ((x)[1] << 16) | ((x)[0] << 24))
 #define read24be(x) ((x)[2] | ((x)[1] << 8) | ((x)[0] << 16))
 #define read16be(x) ((x)[1] | ((x)[0] << 8))
+
 
 #define _read32be(w, x, y, z) ((z) | ((y) << 8) | ((x) << 16) | ((w) << 24))
 
@@ -55,16 +57,12 @@ typedef struct {
     uint32_t samples_per_second;
     uint32_t avg_bytes_per_second;
     uint16_t block_align;
-    uint16_t bit_per_sample;
+    uint16_t bit_per_sample; // this is only bps if PCM, otherwise it's a size
 
 } FMT_CHUNK_COMMON;
 
-/*
- * This defines the <format-specific-fields> chunk as part of <fmt-ck>
- * For the WAVE_FORMAT_PCM format
- */
-typedef struct {
-    uint16_t sample_rate;
-} FMT_CHUNK_FORMAT_PCM;
+
 
 void print_info(const uint8_t* buf, const size_t buf_size);
+
+void visualize(FILE* file);

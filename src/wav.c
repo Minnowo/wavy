@@ -1,17 +1,20 @@
 
 #include "wav.h"
 
+#include <math.h>
+#include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 static int decode_wav_chunks(const uint8_t *buf, const size_t buf_size,
 
-                      WAV_CHUNK *fmt_chunk, WAV_CHUNK *fact_chunk,
-                      WAV_CHUNK *cue_chunk, WAV_CHUNK *playlist_chunk,
-                      WAV_CHUNK *assoc_data_list_chunk, WAV_CHUNK *data_chunk) {
+                             WAV_CHUNK *fmt_chunk, WAV_CHUNK *fact_chunk,
+                             WAV_CHUNK *cue_chunk, WAV_CHUNK *playlist_chunk,
+                             WAV_CHUNK *assoc_data_list_chunk,
+                             WAV_CHUNK *data_chunk) {
 
   uint8_t *p = buf;
 
@@ -132,81 +135,173 @@ static int decode_wav_chunks(const uint8_t *buf, const size_t buf_size,
   return 1;
 }
 
-static void print_info_PCM(FMT_CHUNK_COMMON *d) {
+uint64_t read_n_le(uint8_t *buf, size_t buf_size, size_t n) {
 
-  uint32_t a = d->num_channels * d->samples_per_second * (d->bit_per_sample / 8);
-  
-  if(d->avg_bytes_per_second != a) {
-    printf("    The avg_bytes_per_second field is not correct!\n");
-    printf("    It should be %u\n", a);
+  uint64_t value = 0;
+  size_t shift = 0;
+
+  for (int i = 0; i < n; i++) {
+
+    value |= buf[i] << shift;
+
+    shift += 8;
   }
-  
-  a = d->num_channels * (d->bit_per_sample / 8);
-  
-  if(d->block_align != a) {
-    printf("    The block_align field is not correct!\n");
-    printf("    It should be %u\n", a);
-  }
-  
+
+  return value;
 }
 
-void print_info(const uint8_t* buf, const size_t buf_size) {
-    
-    if(buf == NULL || buf_size <= 0) {
-        printf("Buffer cannot be null or have 0 size!\n");
-        return ;
+void print_info(const uint8_t *buf, const size_t buf_size) {
+
+  if (buf == NULL || buf_size <= 0) {
+    printf("Buffer cannot be null or have 0 size!\n");
+    return;
+  }
+
+  printf("Buffer size: %ld\n", buf_size);
+
+  WAV_CHUNK fmt_chunk;
+  WAV_CHUNK data_chunk;
+
+  if (!decode_wav_chunks(buf, buf_size, &fmt_chunk, NULL, NULL, NULL, NULL,
+                         &data_chunk))
+    return;
+
+  printf("Decoded format chunk:\n");
+
+  printf("  Data length           : %d\n", fmt_chunk.chunk_size);
+
+  // must be at least 16
+  if (fmt_chunk.chunk_size < sizeof(FMT_CHUNK_COMMON)) {
+    printf("format chunk data length does not match expected structure!\n");
+    return;
+  }
+
+  FMT_CHUNK_COMMON *d = (FMT_CHUNK_COMMON *)fmt_chunk.chunk_data;
+
+  printf("  chunk id              : %d\n", fmt_chunk.chunk_id);
+  printf("  format tag            : %d\n", d->format_tag);
+  printf("  num chanels           : %d\n", d->num_channels);
+  printf("  sample rate           : %d\n", d->samples_per_second);
+  printf("  avg bytes per second  : %d\n", d->avg_bytes_per_second);
+  printf("  block align           : %d\n", d->block_align);
+  printf("  bits per sample       : %d\n", d->bit_per_sample);
+
+  switch (d->format_tag) {
+  default:
+    printf("  format tag is unknown!\n");
+    break;
+
+  case IBM_FORMAT_MULAW:
+    printf("  format tag readable   : IBM_FORMAT_MULAW\n");
+    break;
+  case IBM_FORMAT_ALAW:
+    printf("  format tag readable   : IBM_FORMAT_ALAW\n");
+    break;
+  case IBM_FORMAT_ADPCM:
+    printf("  format tag readable   : IBM_FORMAT_ADPCM\n");
+    break;
+  case WAVE_FORMAT_PCM:
+    printf("  format tag readable   : Microsoft WAVE_FORMAT_PCM\n");
+    uint32_t a =
+        d->num_channels * d->samples_per_second * (d->bit_per_sample / 8);
+
+    if (d->avg_bytes_per_second != a) {
+      printf("    The avg_bytes_per_second field is not correct!\n");
+      printf("    It should be %u\n", a);
     }
+
+    a = d->num_channels * (d->bit_per_sample / 8);
+
+    if (d->block_align != a) {
+      printf("    The block_align field is not correct!\n");
+      printf("    It should be %u\n", a);
+    }
+
+    uint8_t *p = data_chunk.chunk_data;
+    size_t i = 0;
+    unsigned int bytes_per_sample_channel = ((d->bit_per_sample + 7) / 8);
+    unsigned int bytes_per_sample = bytes_per_sample_channel * d->num_channels;
     
-    printf("Buffer size: %ld\n", buf_size);
+    int precision = 2000;
     
+    const int WIDTH = 300;
+    const int HEIGHT = 20;
+    char screen[WIDTH][HEIGHT];
+
+    for (int y = 0; y < HEIGHT; y++)
+      for (int x = 0; x < WIDTH; x++) {
+        screen[x][y] = ' ';
+      }
+
+    const uint64_t MAX = pow(2, d->bit_per_sample) ;
+    
+    
+    printf("abs function test %d\n", abs(-5));
+    
+    for(int x = 0; x < WIDTH; x++) {
+        
+        int64_t max = 0;
+        for(int n = 0; n < d->samples_per_second / precision; n++) {
+
+        for (int channel = 0; channel < d->num_channels; channel++) {
+
+          int64_t sample =
+              read_n_le(&p[i], data_chunk.chunk_size, bytes_per_sample_channel);
+          
+          if(channel == 0 && sample > abs(max)) {
+
+              max = sample;
+          }
+
+          i += bytes_per_sample_channel;
+
+          if (i >= data_chunk.chunk_size) {
+            return;
+          }
+        }
+        }
+        
+        if(max == 0) {
+            continue;
+        }
+
+        uint64_t scaled = ((double)max / (double)MAX) * HEIGHT;
+        
+        if(scaled >= HEIGHT) {
+            scaled = HEIGHT ;
+        }
+        
+        for(int y = 0; y < scaled; y++) {
+
+            screen[x][y] = '#';
+        }
+    }
+
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+
+            putchar(screen[x][HEIGHT- y - 1]);
+        }
+        printf("\n");
+    }
+
+    break;
+  }
+}
+
+
+
+
+void visualize(FILE *file) {
+    
+    uint8_t buf[1024 * 1024];
+    
+    fread(buf, 1, sizeof(buf),file);
+
     WAV_CHUNK fmt_chunk;
+    WAV_CHUNK data_chunk;
 
-    if (!decode_wav_chunks(buf, buf_size, &fmt_chunk, NULL, NULL, NULL, NULL, NULL)) 
-        return;
-    
-    printf("Decoded format chunk:\n");
-    
-    printf("  Data length           : %d\n", fmt_chunk.chunk_size);
-
-    // must be at least 16
-    if (fmt_chunk.chunk_size < sizeof(FMT_CHUNK_COMMON)) {
-        printf("format chunk data length does not match expected structure!\n");
-        return;
-    }
-
-
-    FMT_CHUNK_COMMON *d = (FMT_CHUNK_COMMON *)fmt_chunk.chunk_data;
-
-    printf("  chunk id              : %d\n", fmt_chunk.chunk_id);
-    printf("  format tag            : %d\n", d->format_tag);
-    printf("  num chanels           : %d\n", d->num_channels);
-    printf("  sample rate           : %d\n", d->samples_per_second);
-    printf("  avg bytes per second  : %d\n", d->avg_bytes_per_second);
-    printf("  block align           : %d\n", d->block_align);
-    printf("  bits per sample       : %d\n", d->bit_per_sample);
-
-    switch (d->format_tag) {
-        default:
-        printf("  format tag is unknown!\n");
-        break;
-
-    case WAVE_FORMAT_PCM:
-        printf("  format tag readable   : Microsoft WAVE_FORMAT_PCM\n");
-        print_info_PCM(d);
-        break;
-    case IBM_FORMAT_MULAW:
-        printf("  format tag readable   : IBM_FORMAT_MULAW\n");
-        break;
-    case IBM_FORMAT_ALAW:
-        printf("  format tag readable   : IBM_FORMAT_ALAW\n");
-        break;
-    case IBM_FORMAT_ADPCM:
-        printf("  format tag readable   : IBM_FORMAT_ADPCM\n");
-        break;
-    }
-    
-
-
+    if (!decode_wav_chunks(buf,sizeof(buf), &fmt_chunk, NULL, NULL, NULL, NULL,
+                           &data_chunk))
+    return;
 }
-
-
