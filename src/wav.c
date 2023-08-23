@@ -388,7 +388,9 @@ void print_info(const uint8_t *buf, const size_t buf_size) {
 }
 
 
-
+void clear_terminal() {
+    printf("\033[H\033[J");
+}
 
 void visualize(FILE *file) {
     
@@ -457,6 +459,9 @@ void visualize(FILE *file) {
         printf("Could not get terminal size!\n");
         return ;
     }
+    
+    ws.ws_row -= 5;
+    ws.ws_col -= 5;
 
     printf("Terminal size %d %d\n", ws.ws_row, ws.ws_row);
     
@@ -474,20 +479,27 @@ void visualize(FILE *file) {
     
     uint8_t *screen_buff = malloc(ws.ws_col * ws.ws_row);
     
-    memset(screen_buff, '.',ws.ws_col * ws.ws_row);
     
     uint64_t max_sample_value = pow(2, fmt_chunk.bit_per_sample);
 
-    uint32_t precision = 100;
-    uint32_t batch_size = fmt_chunk.samples_per_second / ws.ws_col;
+    uint32_t precision = 1000;
+    uint32_t batch_size = fmt_chunk.samples_per_second / precision;
     
     int64_t max_per_channel[fmt_chunk.num_channels];
     
+    int64_t bits_in = 0;
     printf("Batch size: %u\n", batch_size);
+    
+    for(int frame = 0; frame < 50; frame += 1) {
+
+        memset(screen_buff, ' ',ws.ws_col * ws.ws_row);
     
     for(int x = 0; x < ws.ws_col; x++) {
         
+
         for(int n = 0; n < batch_size; n++) {
+            
+            bits_in ++;
 
             offset += bytes_per_sample_channel;
 
@@ -522,10 +534,15 @@ void visualize(FILE *file) {
 
                 if (max_per_channel[channel] < sample)
                     max_per_channel[channel] = sample;
+
+                    // max_per_channel[channel] += sample;
             }
         }
+            // for (int channel = 0; channel < fmt_chunk.num_channels; channel++) {
+            //         max_per_channel[channel] /= fmt_chunk.num_channels / 2;
+            // }
 
-        printf("Max value %zu\n", max_per_channel[0]);
+        // printf("Max value %zu\n", max_per_channel[0]);
         
         if(max_per_channel[0] == 0)
             continue;
@@ -537,11 +554,25 @@ void visualize(FILE *file) {
         if (scaled >= ws.ws_row) {
             scaled = ws.ws_row;
         }
+        
+        // #define frombottom
+
+        #ifdef frombottom 
 
         for (int y = 0; y < scaled; y++) {
 
             screen_buff[y  * ws.ws_col + x] = '#';
         }
+        
+        #else
+
+        
+        for (int y = (ws.ws_row - scaled)/2; y < scaled; y++) {
+
+            screen_buff[y  * ws.ws_col + x] = '#';
+        }
+
+        #endif
 
 
         // int height = ws.ws_row / fmt_chunk.num_channels;
@@ -561,6 +592,23 @@ void visualize(FILE *file) {
         // }
     }
     
+    clear_terminal();
+    fflush(stdout);
+
+    for (int y = 0; y < ws.ws_row; y++) {
+        for (int x = 0; x < ws.ws_col; x++) {
+            
+
+            putchar(screen_buff[(ws.ws_row- y - 1) *ws.ws_col + x]);
+        }
+        printf("\n");
+    }
+    fflush(stdout);
+    usleep(
+        1000000
+    );
+    }
+    
     cleanup:
 
     for (int y = 0; y < ws.ws_row; y++) {
@@ -571,6 +619,7 @@ void visualize(FILE *file) {
         }
         printf("\n");
     }
+    printf("Seconds of display: %f\n",(double) fmt_chunk.samples_per_second /bits_in);
     
 
     free(screen_buff);
