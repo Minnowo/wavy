@@ -72,18 +72,21 @@ int main(int argc, char*argv[]) {
         return 1;
     }
     
-    uint8_t buf[1024 * 1024 * 2];
-    
-    fread(buf, 1, sizeof(buf),handle);
+
+    visualize(handle);
 
     
-    print_info(buf, sizeof(buf));
+    
+    // uint8_t buf[1024 * 1024 * 4];
+    
+    // fread(buf, 1, sizeof(buf),handle);
+
+    
+    // print_info(buf, sizeof(buf));
     
 
     // verify_wav(buf, sizeof(buf));
 
-
-    print_hex(buf, 44);
     
     cleanup:
     fclose(handle);

@@ -16,8 +16,16 @@
 #define read24be(x) ((x)[2] | ((x)[1] << 8) | ((x)[0] << 16))
 #define read16be(x) ((x)[1] | ((x)[0] << 8))
 
+#define print_32_bits(x) \
+    printf("[%c%c%c%c]\n", \
+        (char)((x >> 24) & 0xFF), \
+        (char)((x >> 16) & 0xFF), \
+        (char)((x >> 8) & 0xFF), \
+        (char)((x) & 0xFF))
 
 #define _read32be(w, x, y, z) ((z) | ((y) << 8) | ((x) << 16) | ((w) << 24))
+
+#define WAV_HEADER_SIZE 12
 
 enum {
 
@@ -64,5 +72,40 @@ typedef struct {
 
 
 void print_info(const uint8_t* buf, const size_t buf_size);
+
+
+/*
+ * Returns 1 if the given buffer starts with a valid RIFF-WAVE header
+*/
+int has_valid_header(const uint8_t* buf, const size_t buf_size);
+
+/*
+ * Returns 1 if the given buffer starts with a valid RIFF-WAVE header
+ * And has a valid fmt chunk
+*/
+int read_format_chunk(const uint8_t* buf, const size_t buf_size, FMT_CHUNK_COMMON* chunk_out, size_t* offset);
+
+/*
+ * Reads a WAV_CHUNK from the buffer and allocates memory for the data field of the chunk
+ *
+ * This function assumes the buffer starts with a CHUNK_ID, and returns 0 if it does not
+ * or cannot allocate memory to copy the data field
+ *
+ * If the size of the data field is bigger than the size of the buff, memory will still be allocated
+ * to the size of the data field and the rest of the buffer will be copied into it
+*/
+int read_copy_chunk(const uint8_t* buf, const size_t buf_size, WAV_CHUNK *chunk_out, size_t* offset);
+
+/*
+ * Frees the data field of the WAV_CHUNK
+*/
+void free_chunk(WAV_CHUNK *chunk_out);
+
+
+/*
+ * If the buffer contains a WAV_CHUNK the function will return the number of bytes the chunk takes up
+ * or 0
+*/
+int next_chunk_offset(const uint8_t* buf, const size_t buf_size, uint32_t* current_chunk_tag, size_t* offset);
 
 void visualize(FILE* file);
