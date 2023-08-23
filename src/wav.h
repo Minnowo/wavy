@@ -7,40 +7,27 @@
 
 #define DEBUG_WAV
 
-#define read32be(x) ((x)[0] | ((x)[1] << 8) | ((x)[2] << 16) | ((x)[3] << 24))
-#define read24be(x) ((x)[0] | ((x)[1] << 8) | ((x)[2] << 16))
-#define read16be(x) ((x)[0] | ((x)[1] << 8))
+#define read32le(x) ((x)[0] | ((x)[1] << 8) | ((x)[2] << 16) | ((x)[3] << 24))
+#define read24le(x) ((x)[0] | ((x)[1] << 8) | ((x)[2] << 16))
+#define read16le(x) ((x)[0] | ((x)[1] << 8))
 
+#define read32be(x) ((x)[3] | ((x)[2] << 8) | ((x)[1] << 16) | ((x)[0] << 24))
+#define read24be(x) ((x)[2] | ((x)[1] << 8) | ((x)[0] << 16))
+#define read16be(x) ((x)[1] | ((x)[0] << 8))
 
+#define _read32be(w, x, y, z) ((z) | ((y) << 8) | ((x) << 16) | ((w) << 24))
 
 enum {
 
-//   RIFF_CHUNK_ID = read32be("RIFF"),
-  RIFF_CHUNK_ID = 1179011410,
-
-  // WAVE_CHUNK_ID = read32be("WAVE"),
-  WAVE_CHUNK_ID = 1163280727,
-
-  // LIST_CHUNK_ID = read32be("LIST"),
-  LIST_CHUNK_ID = 1414744396,
-
-  //   INFO_CHUNK_ID = read32be("INFO"),
-  INFO_CHUNK_ID = 1330007625,
-
-  //   fmt_CHUNK_ID = read32be("fmt "),
-  fmt_CHUNK_ID = 544501094,
-
-  //   fact_CHUNK_ID = read32be("fact"),
-  fact_CHUNK_ID = 1952670054,
-
-  //   cue_CHUNK_ID = read32be("cue "),
-  cue_CHUNK_ID = 543520099,
-
-  //   playlist_CHUNK_ID = read32be("plst"),
-  playlist_CHUNK_ID = 1953721456,
-
-  //   data_CHUNK_ID = read32be("data"),
-  data_CHUNK_ID = 1635017060
+  RIFF_CHUNK_ID = _read32be('R', 'I', 'F', 'F'),
+  WAVE_CHUNK_ID = _read32be('W', 'A', 'V', 'E'),
+  LIST_CHUNK_ID = _read32be('L', 'I', 'S', 'T'),
+  INFO_CHUNK_ID = _read32be('I', 'N', 'F', 'O'),
+  fmt_CHUNK_ID = _read32be('f', 'm', 't', ' '),
+  fact_CHUNK_ID = _read32be('f', 'a', 'c', 't'),
+  cue_CHUNK_ID = _read32be('c', 'u', 'e', ' '),
+  playlist_CHUNK_ID = _read32be('p', 'l', 's', 't'),
+  data_CHUNK_ID = _read32be('d', 'a', 't', 'a')
 };
 
 typedef enum {
@@ -57,13 +44,27 @@ typedef struct {
 
 } WAV_CHUNK;
 
+
+
+/*
+ * This defines the <common-fields> chunk as part of <fmt-ck>
+ */
 typedef struct {
     uint16_t format_tag;
     uint16_t num_channels;
     uint32_t samples_per_second;
     uint32_t avg_bytes_per_second;
     uint16_t block_align;
+    uint16_t bit_per_sample;
 
 } FMT_CHUNK_COMMON;
+
+/*
+ * This defines the <format-specific-fields> chunk as part of <fmt-ck>
+ * For the WAVE_FORMAT_PCM format
+ */
+typedef struct {
+    uint16_t sample_rate;
+} FMT_CHUNK_FORMAT_PCM;
 
 void print_info(const uint8_t* buf, const size_t buf_size);

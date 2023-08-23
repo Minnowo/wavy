@@ -45,7 +45,7 @@ static int decode_wav_chunks(const uint8_t *buf, const size_t buf_size,
   fmt_chunk->chunk_id = read32be(p);
 
   p += 4;
-  fmt_chunk->chunk_size = read32be(p);
+  fmt_chunk->chunk_size = read32le(p);
 
   p += 4;
   fmt_chunk->chunk_data = p;
@@ -74,7 +74,7 @@ static int decode_wav_chunks(const uint8_t *buf, const size_t buf_size,
     chunk.chunk_id = read32be(p);
     p += 4;
 
-    chunk.chunk_size = read32be(p);
+    chunk.chunk_size = read32le(p);
     p += 4;
 
     if (p + chunk.chunk_size >= buf + buf_size) {
@@ -133,7 +133,21 @@ static int decode_wav_chunks(const uint8_t *buf, const size_t buf_size,
 }
 
 static void print_info_PCM(FMT_CHUNK_COMMON *d) {
-    
+
+  uint32_t a = d->num_channels * d->samples_per_second * (d->bit_per_sample / 8);
+  
+  if(d->avg_bytes_per_second != a) {
+    printf("    The avg_bytes_per_second field is not correct!\n");
+    printf("    It should be %u\n", a);
+  }
+  
+  a = d->num_channels * (d->bit_per_sample / 8);
+  
+  if(d->block_align != a) {
+    printf("    The block_align field is not correct!\n");
+    printf("    It should be %u\n", a);
+  }
+  
 }
 
 void print_info(const uint8_t* buf, const size_t buf_size) {
@@ -154,7 +168,8 @@ void print_info(const uint8_t* buf, const size_t buf_size) {
     
     printf("  Data length           : %d\n", fmt_chunk.chunk_size);
 
-    if (fmt_chunk.chunk_size != sizeof(FMT_CHUNK_COMMON)) {
+    // must be at least 16
+    if (fmt_chunk.chunk_size < sizeof(FMT_CHUNK_COMMON)) {
         printf("format chunk data length does not match expected structure!\n");
         return;
     }
@@ -162,11 +177,13 @@ void print_info(const uint8_t* buf, const size_t buf_size) {
 
     FMT_CHUNK_COMMON *d = (FMT_CHUNK_COMMON *)fmt_chunk.chunk_data;
 
+    printf("  chunk id              : %d\n", fmt_chunk.chunk_id);
     printf("  format tag            : %d\n", d->format_tag);
     printf("  num chanels           : %d\n", d->num_channels);
     printf("  sample rate           : %d\n", d->samples_per_second);
     printf("  avg bytes per second  : %d\n", d->avg_bytes_per_second);
     printf("  block align           : %d\n", d->block_align);
+    printf("  bits per sample       : %d\n", d->bit_per_sample);
 
     switch (d->format_tag) {
         default:
@@ -187,6 +204,8 @@ void print_info(const uint8_t* buf, const size_t buf_size) {
         printf("  format tag readable   : IBM_FORMAT_ADPCM\n");
         break;
     }
+    
+
 
 }
 

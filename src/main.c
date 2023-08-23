@@ -52,8 +52,17 @@ void print_hex(uint8_t* buf, size_t size) {
 
 int main(int argc, char*argv[]) {
     
-    const char* FILENAME = "./file.wav";
+    char* filename = "./file.wav";
     
+    if(argc > 1) {
+        
+        filename = argv[1];
+    }
+
+    
+    const char* FILENAME = filename;
+    
+    printf("Reading %s\n", FILENAME);
     FILE* handle = fopen(FILENAME , "r");
     
     if(!handle){
@@ -67,7 +76,7 @@ int main(int argc, char*argv[]) {
     printf("read %d bytes\n", sizeof(buf));
 
     
-    test(buf, sizeof(buf));
+    print_info(buf, sizeof(buf));
     
 
     // verify_wav(buf, sizeof(buf));
